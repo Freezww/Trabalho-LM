@@ -1,33 +1,7 @@
 .data
-# Endereços Manuais (Base = 0x10010000)
-# TODOS OS OFFSETS RECALCULADOS COM .align 2
-# Offset 0:   str_n1
-# Offset 28:  str_n2
-# Offset 56:  str_n3
-# Offset 84:  str_n4
-# Offset 112: str_res
-# Offset 140: str_mean
-# Offset 156: MSG_FULL
-# Offset 176: str_nl
-# Offset 180: (Após alinhamento final)
-
-.align 2
-str_n1:   .asciiz "\nDigite a nota 1 (float): "  # 28 bytes
-.align 2
-str_n2:   .asciiz "\nDigite a nota 2 (float): "  # 28 bytes
-.align 2
-str_n3:   .asciiz "\nDigite a nota 3 (float): "  # 28 bytes
-.align 2
-str_n4:   .asciiz "\nDigite a nota 4 (float): "  # 28 bytes
-.align 2
-str_res:  .asciiz "\nO Desvio Padrao e: "         # 27 bytes, pad 1
-.align 2
-str_mean: .asciiz "\nA media e: "                # 14 bytes, pad 2
-.align 2
 MSG_FULL: .asciiz "Acumulador Cheio"           # 17 bytes, pad 3
-.align 2
+.align 3
 str_nl:   .asciiz "\n"                           # 2 bytes, pad 2
-.align 2
 
 .text
 .globl main
@@ -36,110 +10,96 @@ str_nl:   .asciiz "\n"                           # 2 bytes, pad 2
 # ROTINA PRINCIPAL (MAIN)
 # ---------------------------------------------------------
 main:
-    # --- Alocar acumulador (global) ---
-    # 1 palavra (4 bytes) para o contador (N)
-    # 4 palavras (16 bytes) para os 4 floats
-    # Total = 5 palavras = 20 Bytes
-    ori   $v0, $zero, 9     # syscall 9 (sbrk)
-    ori   $a0, $zero, 20    # Alocar 20 bytes
-    syscall
-    addu  $s0, $v0, $zero   # Salva o endereço base do acumulador em $s0
-    sw    $zero, 0($s0)     # Inicializa o contador N em 0
+    	# --- Alocar acumulador (global) ---
+    	# 1 palavra (4 bytes) para o contador (N)
+    	# 4 palavras (16 bytes) para os 4 floats
+    	# Total = 5 palavras = 20 Bytes
+    	addi   $v0, $zero, 9     # syscall 9 (sbrk)
+    	addi   $a0, $zero, 44    # Alocar 20 bytes
+    	syscall
+    	add  $s0, $v0, $zero   # Salva o endereco base do acumulador em $s0
+    	sw    $zero, 0($s0)	# Inicializa o contador N em 0
 
-    # --- Ler e Inserir Nota 1 ---
-    ori   $v0, $zero, 4
-    lui   $a0, 0x1001       # Base 0x10010000
-    addiu $a0, $a0, 0       # Offset 0 (str_n1)
-    syscall
-    ori   $v0, $zero, 6     # syscall 6 (read_float)
-    syscall
-    mov.s $f12, $f0         # Argumento ($f12) para a função de inserção
-    jal   INSERT_ACCUMULATOR_FLOAT
-
-    # --- Ler e Inserir Nota 2 ---
-    ori   $v0, $zero, 4
-    lui   $a0, 0x1001
-    addiu $a0, $a0, 28      # Offset 28 (str_n2)
-    syscall
-    ori   $v0, $zero, 6
-    syscall
-    mov.s $f12, $f0
-    jal   INSERT_ACCUMULATOR_FLOAT
-
-    # --- Ler e Inserir Nota 3 ---
-    ori   $v0, $zero, 4
-    lui   $a0, 0x1001
-    addiu $a0, $a0, 56      # Offset 56 (str_n3)
-    syscall
-    ori   $v0, $zero, 6
-    syscall
-    mov.s $f12, $f0
-    jal   INSERT_ACCUMULATOR_FLOAT
-
-    # --- Ler e Inserir Nota 4 ---
-    ori   $v0, $zero, 4
-    lui   $a0, 0x1001
-    addiu $a0, $a0, 84      # Offset 84 (str_n4)
-    syscall
-    ori   $v0, $zero, 6
-    syscall
-    mov.s $f12, $f0
-    jal   INSERT_ACCUMULATOR_FLOAT
+	addi $t9, $zero, 10
+    	READ_LOOP_MAIN:
+    		beq $t9, $zero, AFTER_READS
+    		ori   $v0, $zero, 6     # syscall 6 (read_float)
+    		syscall
+    		mov.s $f12, $f0         # argumento para a fun��o de inser��o
+    		jal   INSERT_ACCUMULATOR_FLOAT
+		addi $t9, $t9, -1
+    		j READ_LOOP_MAIN
+	AFTER_READS:
     
-    # --- Chamar a função de Desvio Padrão ---
-    # A função agora usa $s0 (acumulador) implicitamente
-    jal   calcula_desvio_padrao
-    # O resultado (float) está em $f0
-
-    # --- Imprimir o resultado (Desvio Padrão) no console ---
-    ori   $v0, $zero, 4
-    lui   $a0, 0x1001
-    addiu $a0, $a0, 112     # Offset 112 (str_res)
-    syscall
+    	# --- Chamar a funcao de Desvio Padrao ---
+    	# A funcao agora usa $s0 (acumulador) implicitamente
+    	jal   CALCULA_DESVIO_PADRAO
+    	# O resultado (float) estao em $f0
     
-    mov.s $f12, $f0
-    ori   $v0, $zero, 2
-    syscall
+    	# Imprime o desvio padrao
+    	mov.s $f12, $f0
+    	ori   $v0, $zero, 2
+    	syscall
 
-    # --- Encerrar o programa ---
-    ori   $v0, $zero, 10
-    syscall
+    	# --- Encerrar o programa ---
+    	addi   $v0, $zero, 10
+    	syscall
 END_MAIN:
 
 #===========================================================
-# FUNÇÃO PARA INSERIR FLOAT NO ACUMULADOR
-# Argumentos: $f12 (float a inserir), $s0 (acumulador)
+# FUNCAO PARA INSERIR FLOAT NO ACUMULADOR
+# Argumentos: $f12 (float a inserir), $s0 (acumulador global)
 #===========================================================
 INSERT_ACCUMULATOR_FLOAT:
-	lw    $t0, 0($s0)       # $t0 = N (contador atual)
-	slti  $t1, $t0, 4       # Verifica se N < 4 (limite do nosso array)
+	# Guardar $s1 e $fp na pilha
+	sw $s1, 0($sp)	# Guarda $s1 em sp[0]
+	
+	# Ajustar pilha para guardar mais informacoes
+	addi $sp, $sp, -4
+	
+	# Avaliacao da expressao
+	lw    $s1, 0($s0)       # $t0 = N (contador atual)
+	slti  $t1, $s1, 10       # Verifica se N < 10  (limite do nosso array - 10 floats)
 	beq   $t1, $zero, INSERT_ACCUMULATOR_ELSE
-	    ori   $t1, $zero, 4   # $t1 = 4 (bytes por float)
-	    mult  $t0, $t1        # $t0 * $t1 (N * 4)
-	    mflo  $t2             # $t2 = offset (N * 4)
-	    addiu $t2, $t2, 4     # $t2 = offset + 4 (pula o contador)
-	    addu  $t2, $t2, $s0   # $t2 = Endereço Base + offset + 4
-		swc1  $f12, 0($t2)    # Salva o float no endereço
-		addiu $t0, $t0, 1     # N++
-		sw    $t0, 0($s0)     # Salva o novo N
-		beq   $zero, $zero, INSERT_ACCUMULATOR_END_IF
+	
+	# Calculo do deslocamento
+	addi $t1, $zero, 4	# $t1 = 4 (bytes por float)
+	mul $t2, $s1, $t1	# $t0 * $t1 (N * 4)
+	addi $t2, $t2, 4     	# $t2 = offset + 4 (pula o contador)
+	add  $t2, $t2, $s0	# $t2 = Endereco Base + offset + 4
+	
+	# Guarda o valor no acumulador
+	swc1  $f12, 0($t2)    # Salva o float no endereco
+	addi $s1, $s1, 1	# N++
+	sw    $s1, 0($s0)	# Salva o novo N
+	
+	# Pula para o final da condicao
+	beq   $zero, $zero, INSERT_ACCUMULATOR_END_IF
 	
 	INSERT_ACCUMULATOR_ELSE: # Acumulador cheio
-		lui   $a0, 0x1001
-		addiu $a0, $a0, 156     # Offset 156 (MSG_FULL)
-		ori   $v0, $zero, 4
+		# Obter string para informar acumulador cheio
+		#lui   $a0, 0x1001
+		#ori $a0, $a0, 0		     	# Offset 0 (MSG_FULL)
+		la $a0, MSG_FULL
+		addi   $v0, $zero, 4		# syscall para imprimit string
 		syscall
-		lui   $a0, 0x1001
-		addiu $a0, $a0, 176     # Offset 176 (str_nl)
-		ori   $v0, $zero, 4
+
+		# Obter quebra de linha
+		addi $a0, $zero, 10		# Codigo do caractere nova linha
+		addi   $v0, $zero, 11
 		syscall
 		
 	INSERT_ACCUMULATOR_END_IF:
+		# Recuperar dados da pilha antes de retornar
+		lw $s1, 4($sp)	# Obtem de volta o antigo $s1
+		addi $sp, $sp, 4	# Retorna $sp para o endereco correto
+	
+		# Retorna para o chamados
 		jr $ra
 END_INSERT_ACCUMULATOR_FLOAT:
 
 #===========================================================
-# FUNÇÃO PARA LIMPAR O ACUMULADOR
+# FUNCAO PARA LIMPAR O ACUMULADOR
 #===========================================================
 CLEAR_ACCUMULATOR:
 	sw $zero, 0($s0)
@@ -147,166 +107,153 @@ CLEAR_ACCUMULATOR:
 END_CLEAR_ACCUMULATOR:
 
 #==========================================================================
-# FUNÇÃO DE MÉDIA (MODIFICADA PARA SER DINÂMICA)
-#
+# FUNCO DE MEDIA
+#==========================================================================
 # Argumentos:
 #   $s0 - (Global) Ponteiro para o Acumulador
 # Retorno:
-#   $f0 - Média (float)
+#   $f0 - Media (float)
 #==========================================================================
 CALCULA_MEDIA:
-    # --- Prólogo ---
-    addiu $sp, $sp, -16
-    sw    $ra, 12($sp)      # Salva endereço de retorno
-    sw    $t0, 8($sp)       # Salva $t0 (contador i)
-    sw    $t1, 4($sp)       # Salva $t1 (N)
-    swc1  $f1, 0($sp)       # Salva $f1 (Soma)
+    	# --- Guardar Registradores que serao usados ---
+    	sw    $ra, 0($sp)      # Salva endereco de retorno
+    	sw    $s1, 4($sp)       # Salva $s1 (N)
+    	sw    $s2, 8($sp)       # Salva $s2 (contador i)
+    	swc1  $f1, 12($sp)       # Salva $f1 (Soma)
+    	addi $sp, $sp, -16
 
-    # --- Inicialização ---
-    lw    $t1, 0($s0)       # $t1 = N (contador de notas)
-    addu  $t0, $zero, $zero # $t0 = i = 0
-    mtc1  $zero, $f1        # $f1 = Soma = 0.0
+    	# --- Inicializacao ---
+    	lw    $s1, 0($s0)       # $t1 = N (contador de notas)
+    	addu  $s2, $zero, $zero # $s2 = i = 0
+	mtc1  $zero, $f1        # $f1 = Soma = 0.0
 
-media_loop:
-    # --- Condição de Loop: if (i >= N) sai ---
-    slt   $t2, $t0, $t1     # $t2 = 1 se (i < N)
-    beq   $t2, $zero, media_loop_end
+	CALC_MEDIA_LOOP:
+		# --- Condicao de Loop: if (i >= N) sai ---
+		slt   $t2, $s2, $s1     # $t2 = 1 se (i < N)
+		beq   $t2, $zero, CALC_MEDIA_LOOP_END
 
-    # --- Corpo do Loop ---
-    # Calcular endereço da nota: &acumulador[i+1]
-    addiu $t3, $t0, 1       # $t3 = i + 1
-    ori   $t4, $zero, 4     # $t4 = 4 (bytes)
-    mult  $t3, $t4
-    mflo  $t3               # $t3 = (i+1) * 4
-    addu  $t3, $s0, $t3     # $t3 = Endereço Base + Offset
+		# --- Corpo do Loop ---
+		# Calcular endereco da nota: &acumulador[i+1]
+		addi $t3, $s2, 1       # $t3 = i + 1
+		ori   $t4, $zero, 4     # $t4 = 4 (bytes)
+		mult  $t3, $t4
+		mflo  $t3               # $t3 = (i+1) * 4
+		addu  $t3, $s0, $t3     # $t3 = Endereco Base + Offset
 
-    # Carregar a nota
-    lwc1  $f2, 0($t3)       # $f2 = nota[i]
+		# Carregar a nota
+    		lwc1  $f2, 0($t3)       # $f2 = nota[i]
     
-    # Acumular soma
-    add.s $f1, $f1, $f2     # Soma = Soma + nota[i]
+    		# Acumular soma
+    		add.s $f1, $f1, $f2     # Soma = Soma + nota[i]
 
-    # --- Incremento ---
-    addiu $t0, $t0, 1       # i++
-    beq   $zero, $zero, media_loop
-media_loop_end:
+    		# --- Incremento ---
+    		addiu $s2, $s2, 1       # i++
+    		beq   $zero, $zero, CALC_MEDIA_LOOP
+	CALC_MEDIA_LOOP_END:
     
-    # --- Divisão ---
-    # Converter N (inteiro em $t1) para N (float em $f2)
-    mtc1  $t1, $f2
-    cvt.s.w $f2, $f2
+    	# --- Divisao ---
+    	# Converter N (inteiro em $t1) para N (float em $f2)
+    	mtc1  $t1, $f2
+    	cvt.s.w $f2, $f2
     
-    # $f0 = Soma / N
-    div.s $f0, $f1, $f2     # $f0 é o registrador de retorno
+    	# $f0 = Soma / N
+    	div.s $f0, $f1, $f2     # $f0 o registrador de retorno
 
-    # --- Epílogo ---
-    lwc1  $f1, 0($sp)
-    lw    $t1, 4($sp)
-    lw    $t0, 8($sp)
-    lw    $ra, 12($sp)
-    addiu $sp, $sp, 16
-    
-    jr $ra
+	# --- Recuperar Dados ---
+	addi $sp, $sp, 16
+	lw    $ra, 0($sp)
+	lw    $s1, 4($sp)
+	lw    $s2, 8($sp)
+        lwc1  $f1, 12($sp)
+
+    	jr $ra	# Retorna para o chamador
+
 FIM_CALCULA_MEDIA:
 
 #==========================================================================
-# FUNÇÃO DE DESVIO PADRÃO (AMOSTRAL, N-1)
-#
+# FUNCAO DE DESVIO PADRAO (AMOSTRAL, N-1)
+#==========================================================================
 # Argumentos:
 #   $s0 - (Global) Ponteiro para o Acumulador
 # Retorno:
-#   $f0 - Desvio Padrão (float)
+#   $f0 - Desvio Padrao (float)
 #==========================================================================
-calcula_desvio_padrao:
-    # --- Prólogo ---
-    addiu $sp, $sp, -40
-    sw    $ra, 36($sp)      # Salva retorno
-    swc1  $f20, 20($sp)     # Salva $f20 (Média μ)
-    swc1  $f25, 0($sp)      # Salva $f25 (Soma dos Quadrados)
-    sw    $s1, 32($sp)      # Salva $s1 (N)
-    sw    $s2, 28($sp)      # Salva $s2 (contador i)
-    # (Não precisamos salvar $f21-f24 pois agora lemos em loop)
+CALCULA_DESVIO_PADRAO:
+    	# --- Guardar Registradores que serao usados ---
+    	addiu $sp, $sp, -40
+    	sw    $ra, 36($sp)      # Salva retorno
+    	swc1  $f20, 20($sp)     # Salva $f20 (Media)
+    	swc1  $f25, 0($sp)      # Salva $f25 (Soma dos Quadrados)
+    	sw    $s1, 32($sp)      # Salva $s1 (N)
+    	sw    $s2, 28($sp)      # Salva $s2 (contador i)
+    	# (Nao precisamos salvar $f21-f24 pois agora lemos em loop)
 
-    # --- Carregar N ---
-    lw    $s1, 0($s0)       # $s1 = N (contador)
+    	# --- Carregar N ---
+    	lw    $s1, 0($s0)       # $s1 = N (contador)
 
-    # --- Passo 1: Chamar 'CALCULA_MEDIA' ---
-    # A função CALCULA_MEDIA usa $s0 (global)
-    jal   CALCULA_MEDIA
-    # A média (μ) retorna em $f0
-    mov.s $f20, $f0         # Salva a média em $f20
+	# --- Passo 1: Chamar 'CALCULA_MEDIA' ---
+    	# A funcao CALCULA_MEDIA usa $s0 (global)
+    	jal   CALCULA_MEDIA
+    	# A media retorna em $f0
+    	mov.s $f20, $f0         # Salva a media em $f20
 
-    # --- Imprimir a média ---
-    ori   $v0, $zero, 4
-    lui   $a0, 0x1001
-    addiu $a0, $a0, 140     # Offset 140 (str_mean)
-    syscall
-    mov.s $f12, $f20
-    ori   $v0, $zero, 2
-    syscall
+    	# --- Passo 2: Calcular a soma dos quadrados das diferencas: Σ(xi - μ)² ---
+    	addu  $s2, $zero, $zero # i = 0
+    	mtc1  $zero, $f25       # SomaQuadrados = 0.0
+
+	DESVIO_LOOP:
+    	# --- Condicao de Loop: if (i >= N) sai ---
+    	slt   $t2, $s2, $s1     # $t2 = 1 se (i < N)
+    	beq   $t2, $zero, DESVIO_LOOP_END
     
-    # Imprime uma nova linha APÓS o float
-    ori   $v0, $zero, 4
-    lui   $a0, 0x1001
-    addiu $a0, $a0, 176     # Offset 176 (str_nl)
-    syscall
+    	# --- Corpo do Loop ---
+    	# Calcular endereco da nota: &acumulador[i+1]
+    	addiu $t3, $s2, 1       # $t3 = i + 1
+    	ori   $t4, $zero, 4     # $t4 = 4 (bytes)
+   	mult  $t3, $t4
+    	mflo  $t3               # $t3 = (i+1) * 4
+    	addu  $t3, $s0, $t3     # $t3 = Endereco Base + Offset
 
-    # --- Passo 2: Calcular a soma dos quadrados das diferenças: Σ(xi - μ)² ---
-    addu  $s2, $zero, $zero # i = 0
-    mtc1  $zero, $f25       # SomaQuadrados = 0.0
+    	# Carregar a nota
+    	lwc1  $f1, 0($t3)       # $f1 = nota[i]
 
-desvio_loop:
-    # --- Condição de Loop: if (i >= N) sai ---
-    slt   $t2, $s2, $s1     # $t2 = 1 se (i < N)
-    beq   $t2, $zero, desvio_loop_end
+    	# Calcular (nota[i] - μ)
+    	sub.s $f2, $f1, $f20    # $f2 = nota[i] - μ
     
-    # --- Corpo do Loop ---
-    # Calcular endereço da nota: &acumulador[i+1]
-    addiu $t3, $s2, 1       # $t3 = i + 1
-    ori   $t4, $zero, 4     # $t4 = 4 (bytes)
-    mult  $t3, $t4
-    mflo  $t3               # $t3 = (i+1) * 4
-    addu  $t3, $s0, $t3     # $t3 = Endereço Base + Offset
+    	# Calcular (nota[i] - μ)²
+    	mul.s $f2, $f2, $f2     # $f2 = (nota[i] - μ)²
+    
+    	# Acumular soma
+    	add.s $f25, $f25, $f2   # SomaQuadrados += (nota[i] - μ)²
 
-    # Carregar a nota
-    lwc1  $f1, 0($t3)       # $f1 = nota[i]
-
-    # Calcular (nota[i] - μ)
-    sub.s $f2, $f1, $f20    # $f2 = nota[i] - μ
+    	# --- Incremento ---
+    	addiu $s2, $s2, 1       # i++
+    	beq   $zero, $zero, DESVIO_LOOP
+	DESVIO_LOOP_END:
     
-    # Calcular (nota[i] - μ)²
-    mul.s $f2, $f2, $f2     # $f2 = (nota[i] - μ)²
+    	# $f25 agora contem a Soma dos Quadrados
     
-    # Acumular soma
-    add.s $f25, $f25, $f2   # SomaQuadrados += (nota[i] - μ)²
-
-    # --- Incremento ---
-    addiu $s2, $s2, 1       # i++
-    beq   $zero, $zero, desvio_loop
-desvio_loop_end:
+    	# --- Passo 3: Calcular a Variancia Amostral (Soma / (N-1)) ---
     
-    # $f25 agora contém a Soma dos Quadrados
-    
-    # --- Passo 3: Calcular a Variância Amostral (Soma / (N-1)) ---
-    
-    # Calcular N-1
-    addiu $t0, $s1, -1      # $t0 = N - 1
+    	# Calcular N-1
+    	addiu $t0, $s1, -1      # $t0 = N - 1
     
 	mtc1  $t0, $f1          # Move (N-1) para o coprocessador
 	cvt.s.w $f1, $f1        # Converte (N-1) para float
     
-    # $f25 = SomaQuadrados / (N-1)
-    div.s $f25, $f25, $f1   # $f25 = Variância Amostral
+    	# $f25 = SomaQuadrados / (N-1)
+    	div.s $f25, $f25, $f1   # $f25 = Variancia Amostral
     
-    # --- Passo 4: Calcular o Desvio Padrão (Raiz da Variância) ---
-    sqrt.s $f0, $f25        # $f0 = Desvio Padrão (retorno)
+    	# --- Passo 4: Calcular o Desvio Padrao (Raiz da Variancia) ---
+    	sqrt.s $f0, $f25        # $f0 = Desvio Padrao (retorno)
 
-    # --- Epílogo ---
-    lw    $s2, 28($sp)
-    lw    $s1, 32($sp)
-    lwc1  $f25, 0($sp)
-    lwc1  $f20, 20($sp)
-    lw    $ra, 36($sp)
-    addiu $sp, $sp, 40
+    	# --- Epílogo ---
+    	lw    $s2, 28($sp)
+    	lw    $s1, 32($sp)
+    	lwc1  $f25, 0($sp)
+    	lwc1  $f20, 20($sp)
+    	lw    $ra, 36($sp)
+    	addiu $sp, $sp, 40
 
-    jr $ra
+    	jr $ra
+FIM_CALCULA_DESVIO_PADRAO:
