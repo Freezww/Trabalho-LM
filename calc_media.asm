@@ -20,7 +20,7 @@
 #	chamador antes da chamada e restaurados após retorno.
 
 # Registradores salvos pelo chamado:
-#	Os registradores $f20 até $f31 sao considerados "Callee-saved", ou seja, o responsavel
+#	Os registradores $f20 ate $f31 sao considerados "Called-saved", ou seja, o responsavel
 #	por salva-los e restaura-los apos o retorno.
 
 # Mapeamento dos elementos:

@@ -29,7 +29,7 @@ PROC_FIBONACCI:
 	# Caso base
 	# if (n < 2)
 	#	return 1
-	slti $t0, $a0, 3			# a0 < 2?
+	slti $t0, $a0, 3			# a0 < 3?
 	beq $t0, $zero, PROC_FIBONACCI_FIM_IF	# Se a0 for maior ou igual a 2, pula para o fim do if
 		addi $v0, $zero, 1		# Retorna 1
 		jr $ra				# Retorna para a recursao anterior
@@ -58,12 +58,12 @@ PROC_FIBONACCI:
 	# Segunda chamada recurvisa
 	addi $a0, $a0, -1	# Decrementa $a0 em 1 unidade
 	jal PROC_FIBONACCI	# Faz a chamada recursiva
-	addi $s1, $v0, 0	# Recebe o retorno da chamada
+	addi $s1, $v0, 0		# Recebe o retorno da chamada
 	
 	# Recupera os valores da pilha
 	lw $fp, 4($sp)		# Recupera o inicio da pilha
 	lw $a0, 0($fp)		# Recupera $a0
-	lw $ra, -12($fp)	# Recupera $ra
+	lw $ra, -12($fp)		# Recupera $ra
 	
 	# Retorno
 	add $t0, $s0, $s1	# fibo1 + fibo2
