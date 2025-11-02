@@ -78,9 +78,9 @@ INSERT_ACCUMULATOR_FLOAT:
 	
 	INSERT_ACCUMULATOR_ELSE: # Acumulador cheio
 		# Obter string para informar acumulador cheio
-		#lui   $a0, 0x1001
-		#ori $a0, $a0, 0		     	# Offset 0 (MSG_FULL)
-		la $a0, MSG_FULL
+		# la $a0, MSG_FULL
+		lui $a0, 0x1001
+		ori $a0, $a0, 0			# Offset 0 (MSG_FULL)
 		addi   $v0, $zero, 4		# syscall para imprimit string
 		syscall
 
