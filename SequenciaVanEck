@@ -1,8 +1,8 @@
 .data
 seq:    .space 400  # criar um vetor de inteiros com 100 posicoes
 
-.text               ### CORREÇÃO ###: Adicionada a diretiva .text
-main:               ### CORREÇÃO ###: Label alterada para 'main' (minúsculo)
+.text               
+main:               
 # informe o n-esimo termo
 addi $v0, $zero, 5
 syscall
@@ -10,7 +10,7 @@ addi $s0, $v0, 0 # s0 contem o inteiro lido
 
 # colocar no registrador do parametro
 addi $a0,$s0,0
-jal CALCULA_VAN_ECK # salta para o procedimento VAN_ECK, retorno$v0 vem em 
+jal CALCULA_VAN_ECK # salta para o procedimento VAN_ECK, retorno vem em $v0  
 
 addi $a0,$v0,0 # $a0 recebe retorno da funcao
 
@@ -25,10 +25,6 @@ syscall
 #############################################################################################################
 CALCULA_VAN_ECK:
 # caso base 
-# if (n == 0)
-#   seq[0] = 0, armazena o primeiro numero que ja foi no vetor 
-#   return 0
-
 slti $t0, $a0, 1 # verifica se n < 1 (ou seja, n == 0)
 bne $t0,$zero, CASO_BASE
 j FIM_IF_BASE
@@ -44,7 +40,7 @@ addi $v0, $zero,0
 jr $ra
 
 FIM_IF_BASE:
-### CORREÇÃO ###: Lógica de salvamento na pilha padronizada
+
 addi $sp, $sp, -12 # aloca espaco na pilha
 sw $a0, 8($sp) # armazena $a0 (n)
 sw $ra, 4($sp) # armazena $ra
@@ -56,7 +52,6 @@ addi $fp, $sp, 0   # $fp agora aponta para a base do novo frame
 addi $a0, $a0, -1 # passa n agora com n - 1
 jal CALCULA_VAN_ECK # chama a funcao recursivamente
 
-### CORREÇÃO ###: Lógica de restauração da pilha corrigida
 # puxar da memoria
 lw $a0, 8($sp) # recupero o n antigo
 lw $ra, 4($sp) # puxa endereco de retorno
@@ -72,9 +67,7 @@ addi $s3, $zero, 0 # flag para dizer se encontrou (0 = nao, 1 = sim)
 addi $s4, $zero, 0 # ultimo indice encontrado
 
 LOOP_BUSCA:
-### CORREÇÃO ###: Condição do loop deve checar $s2 (indice), não $a0 (n)
 slti $t9, $s2, 0 # verifica se o indice $s2 e menor que 0
-### CORREÇÃO ###: Deve sair do loop se $s2 < 0 (ou seja, $t9 != 0)
 bne $t9, $zero, FIM_BUSCA # Se $s2 < 0, termina a busca
 
 # calcular endereco base de seq
@@ -90,7 +83,6 @@ addi $s2, $s2, -1 # indice = indice - 1
 j LOOP_BUSCA # fica em loop ate encontrar ou ate chegar em um valor menor que 0
 
 ENCONTROU:  
-### CORREÇÃO ###: Salva o indice encontrado em $s4 (que será usado no cálculo)
 addi $s4, $s2, 0 # $s4 = indice encontrado (k)
 addi $s3, $zero, 1 # flag = 1, achou
 j FIM_BUSCA 
@@ -102,7 +94,6 @@ beq $s3, $zero, NAO_ENCONTROU # se nao encontrou (flag=0), salta para nao encont
 
 # Se encontrou:
 addi $t3, $a0, -1 # t3 = n - 1
-### CORREÇÃO ###: Usa $s4 (onde o indice foi salvo) e não $t4
 sub $v0, $t3, $s4 # a(n) = (n-1) - k
 j SALVAR
 
@@ -119,4 +110,3 @@ SALVAR:
 
     jr   $ra  # retorna com v0 = a(n)
 
-# FIM_SALVAR: (Label não necessária)
