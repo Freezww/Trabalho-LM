@@ -1,0 +1,112 @@
+.data
+seq:    .space 400  # criar um vetor de inteiros com 100 posicoes
+
+.text               
+main:               
+# informe o n-esimo termo
+addi $v0, $zero, 5
+syscall
+addi $s0, $v0, 0 # s0 contem o inteiro lido
+
+# colocar no registrador do parametro
+addi $a0,$s0,0
+jal CALCULA_VAN_ECK # salta para o procedimento VAN_ECK, retorno vem em $v0  
+
+addi $a0,$v0,0 # $a0 recebe retorno da funcao
+
+# impressao do resultado
+addi $v0,$zero,1
+syscall
+
+# finalizacao do programa
+addi $v0, $zero,10
+syscall
+
+#############################################################################################################
+CALCULA_VAN_ECK:
+# caso base 
+slti $t0, $a0, 1 # verifica se n < 1 (ou seja, n == 0)
+bne $t0,$zero, CASO_BASE
+j FIM_IF_BASE
+
+# seq[0] = 0
+CASO_BASE:
+lui $t5, 0x1001
+ori $t5, $t5, 0x0000 
+sw $zero, 0($t5) #seq[0] = 0
+
+# return 0
+addi $v0, $zero,0
+jr $ra
+
+FIM_IF_BASE:
+
+addi $sp, $sp, -12 # aloca espaco na pilha
+sw $a0, 8($sp) # armazena $a0 (n)
+sw $ra, 4($sp) # armazena $ra
+sw $fp, 0($sp) # armazena $fp
+addi $fp, $sp, 0   # $fp agora aponta para a base do novo frame
+
+###########################################################################################################
+# calculo do termo anterior
+addi $a0, $a0, -1 # passa n agora com n - 1
+jal CALCULA_VAN_ECK # chama a funcao recursivamente
+
+# puxar da memoria
+lw $a0, 8($sp) # recupero o n antigo
+lw $ra, 4($sp) # puxa endereco de retorno
+lw $fp, 0($sp) # recupero o fp
+addi $sp, $sp, 12 # libera pilha
+
+addi $s1, $v0, 0 # $s1 = retorno da funcao para n-1 (termo anterior)
+
+################################################################################################################
+# procurar ultima vez que $s1 (termo anterior) apareceu
+addi $s2, $a0, -2 # indice de busca 'k', comeca em n-2
+addi $s3, $zero, 0 # flag para dizer se encontrou (0 = nao, 1 = sim)
+addi $s4, $zero, 0 # ultimo indice encontrado
+
+LOOP_BUSCA:
+slti $t9, $s2, 0 # verifica se o indice $s2 e menor que 0
+bne $t9, $zero, FIM_BUSCA # Se $s2 < 0, termina a busca
+
+# calcular endereco base de seq
+lui  $t5, 0x1001
+ori  $t5, $t5, 0x0000
+
+sll $t6, $s2, 2 # t6 = indice * 4
+add $t7, $t5, $t6 # t7 = endereco de seq[k]
+lw $t8, 0($t7) # t8 = seq[k]
+
+beq $t8, $s1, ENCONTROU # verifica se seq[k] == termo anterior, achou
+addi $s2, $s2, -1 # indice = indice - 1
+j LOOP_BUSCA # fica em loop ate encontrar ou ate chegar em um valor menor que 0
+
+ENCONTROU:  
+addi $s4, $s2, 0 # $s4 = indice encontrado (k)
+addi $s3, $zero, 1 # flag = 1, achou
+j FIM_BUSCA 
+
+################################################################################################################
+FIM_BUSCA:
+# calcular para o n-esimo termo 
+beq $s3, $zero, NAO_ENCONTROU # se nao encontrou (flag=0), salta para nao encontrou
+
+# Se encontrou:
+addi $t3, $a0, -1 # t3 = n - 1
+sub $v0, $t3, $s4 # a(n) = (n-1) - k
+j SALVAR
+
+NAO_ENCONTROU:
+addi $v0, $zero, 0 # a(n) = 0
+
+SALVAR:
+ # salvar seq[n] = v0
+    lui  $t5, 0x1001 # carrega a parte alta
+    ori  $t5, $t5, 0x0000 # completa com a parte baixa
+    sll  $t6, $a0, 2 # multiplica n ($a0) por 4 para obter o deslocamento em bytes
+    add  $t7, $t5, $t6  
+    sw   $v0, 0($t7) # coloca na memoria o $v0 na posicao seq[n]
+
+    jr   $ra  # retorna com v0 = a(n)
+
