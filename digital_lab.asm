@@ -1,6 +1,6 @@
 .data
-	SEVEN_SEGMENTS_RIGHT: .word 0xFFFF0010		# Display de sete segmentos da direita
-	SEVEN_SEGMENTS_LEFT: .word 0xFFFF0011	# Display de sete segmentos da esquerda
+	SEVEN_SEGMENTS_RIGHT: .word 0xFFFF0010	# Display de sete segmentos da direita
+	SEVEN_SEGMENTS_LEFT: .word 0xFFFF0011		# Display de sete segmentos da esquerda
 	KEYBOARD_ADDRESS:  .word 0xFFFF0012		# Endereco para varredura do teclado
 	
 	# Valores em hexa para acender o terminal
@@ -54,6 +54,8 @@ add  $s0, $v0, $zero   # Salva o endereco base do acumulador em $s0
 sw    $zero, 0($s0)	# Inicializa o contador N em 0
 
 MAIN:
+	jal CLEAR_ERROR
+
 	# Enderecamento do Display Direito
 	lui $s6, 0xFFFF
 	ori $s6, $s6, 0x0010
@@ -88,33 +90,28 @@ MAIN:
 			ori $t3, $t3, 0x17
 			add $t3, $t3, $s2		# $t3 = Endereco de KEYBOARD_CODES[indice]
 			lb $t4, 0($t3)			# $t4 = KEYBOARD_CODES[indice]
-	
-			beq $v0, $t4, LIGHT_DISPLAY	# Se codigo da tecla lida for igual ao codigo do indice, acende o display
-	
+			
+			IF:
+				# Nao guardar valor
+				bne  $v0, $t4, END_IF	# Se codigo da tecla lida for igual ao codigo do indice, acende o display
+			
+			ELSE:
+				# Acender display direito com a tecla pressionada
+				#la $t5, SEGMENT_VALUES
+				lui $t5, 0x1001			# $t5 = Endereco base de SEGMENT_VALUES
+				ori $t5, $t5, 0xc
+				add $t5, $t5, $s2		# $t5 = Endereco de SEGMENT_VALUES[indice]
+				lb $a0, 0($t5)			# $a0 = Valor do display para o digito
+			
+				# Guardar valor que esta no display
+				jal LIGHT_RIGHT_DISPLAY	# Se codigo da tecla lida for igual ao codigo do indice, acende o display
+				addi $s1, $s2, 0							# Repassar o valor do display para $s1 - Guardar o numero que esta no display
+			
+			END_IF:
 			addi $s2, $s2, 1			# Incrementa o indice
 			j SEARCH_LOOP			# Continua a busca
-		
-		LIGHT_DISPLAY:
-			# Repassar o valor do display para $s1 - Guardar o numero que esta no display
-			addi $s1, $s2, 0
-		
-			# $t1 contem o indice correto (0 a 9)
-			#la $t5, SEGMENT_VALUES
-			lui $t5, 0x1001			# $t5 = Endereco base de SEGMENT_VALUES
-			ori $t5, $t5, 0xc
-			add $t5, $t5, $s2		# $t5 = Endereco de SEGMENT_VALUES[indice]
-			lb $t6, 0($t5)			# $t6 = Valor do display para o digito
-
-			sb $t6, 0($s6)			# Escreve o valor do display ($t6) no endereco do Display Direito ($s7)
-
-			j MAIN_LOOP			# Reinicia o ciclo
 			
 		IGNORE_KEY:
-			# Se a tecla nao for numerica
-			# Tratar letras e suas funcoes
-			# ========================
-			# ========================
-			
 			# $s2 vale 10 quando chega aqui
 			# Mudar o valor da constante $s3 para 16
 			 addi $s3, $zero, 16
@@ -140,25 +137,27 @@ MAIN:
 					addi $t0, $zero, 10
 					beq $s2, $t0, LETTER_A
 
-					# Verificacao com a constante 10 (Indica letra A)
+					# Verificacao com a constante 11 (Indica letra B)
 					addi $t0, $zero, 11
 					beq $s2, $t0, LETTER_B
 					
-					# Verificacao com a constante 10 (Indica letra A)
+					# Verificacao com a constante 12 (Indica letra C)
 					addi $t0, $zero, 12
 					beq $s2, $t0, LETTER_C
 					
-					# Verificacao com a constante 10 (Indica letra A)
+					# Verificacao com a constante 13 (Indica letra D)
 					addi $t0, $zero, 13
 					beq $s2, $t0, LETTER_D
 					
-					# Verificacao com a constante 10 (Indica letra A)
+					# Verificacao com a constante 15 (Indica letra E)
 					addi $t0, $zero, 14
 					beq $s2, $t0, LETTER_E
 					
-					# Verificacao com a constante 10 (Indica letra A)
+					# Verificacao com a constante 15 (Indica letra F)
 					addi $t0, $zero, 15
 					beq $s2, $t0, LETTER_F
+					
+					j END_TREATMENTS
 										
 				# Tratar quando 'a' e pressionado
 				LETTER_A:
@@ -204,6 +203,163 @@ END_MAIN:
 
 
 #======================================
+# Rotina para acender o display esquerdo
+# Parametros:
+#	$a0 contem o codigo a ser acendido no display
+#======================================
+LIGHT_LEFT_DISPLAY:
+	# Guardar registradores
+	sw $s1, 0($sp)
+	sw $ra, 4($sp)
+	addi $sp, $sp, -8	# Ajusta a pilha para a proxima posicao vazia
+	
+	# Enderecamento do Display Esquerdo
+	lui $s1, 0xFFFF
+	ori $s1, $s1, 0x0011
+
+	# Limpar Display antes de colocar novo valor
+	jal CLEAR_ERROR
+
+	sb $a0, 0($s1)			# Escreve o valor do display ($t6) no endereco do Display Esquerdo ($s1)
+
+	# Recupera os dados
+	addi $sp, $sp, 8	# Volta a pilha para o inicio
+	lw $s1, 0($sp)
+	lw $ra, 4($sp)
+
+	jr $ra	# Reinicia o ciclo
+	
+END_LIGHT_LEFT_DISPLAY:
+
+
+#======================================
+# Rotina para acender o display esquerdo
+# Parametros:
+#	$a0 contem o codigo a ser acendido no display
+#======================================
+LIGHT_RIGHT_DISPLAY:
+	# Guardar registradores
+	sw $s1, 0($sp)
+	sw $ra, 4($sp)
+	addi $sp, $sp, -8	# Ajusta a pilha para a proxima posicao vazia
+	
+	# Enderecamento do Display Esquerdo
+	lui $s1, 0xFFFF
+	ori $s1, $s1, 0x0010
+
+	# Limpar Display antes de colocar novo valor
+	jal CLEAR_ERROR
+
+	sb $a0, 0($s1)			# Escreve o valor do display ($t6) no endereco do Display Esquerdo ($s1)
+
+	# Recupera os dados
+	addi $sp, $sp, 8	# Volta a pilha para o inicio
+	lw $s1, 0($sp)
+	lw $ra, 4($sp)
+
+	jr $ra	# Reinicia o ciclo
+	
+END_LIGHT_RIGHT_DISPLAY:
+
+
+#======================================
+# Rotina para acender o display esquerdo
+#======================================
+LIGHT_RIGHT_DOT_DISPLAY:
+	# Guardar registradores
+	sw $s1, 0($sp)
+	sw $ra, 4($sp)
+	addi $sp, $sp, -8	# Ajusta a pilha para a proxima posicao vazia
+	
+	# Enderecamento do Display Esquerdo
+	lui $s1, 0xFFFF
+	ori $s1, $s1, 0x0010
+
+	# Limpar Display antes de colocar novo valor
+	jal CLEAR_ERROR
+
+	sb $a0, 0($s1)			# Escreve o valor do display ($t6) no endereco do Display Esquerdo ($s1)
+
+	# Recupera os dados
+	addi $sp, $sp, 8	# Volta a pilha para o inicio
+	lw $s1, 0($sp)
+	lw $ra, 4($sp)
+
+	jr $ra	# Reinicia o ciclo
+	
+END_LIGHT_RIGHT_DOT_DISPLAY:
+
+
+#======================================
+# Rotina para colocar o erro no display
+#======================================
+LIGHT_ERROR:
+	# Guardar registradores que serao usados
+	sw $s1, 0($sp)
+	sw $s2,-4($sp)
+	sw $ra, -8($sp)
+	addi $sp, $sp, -12	# Ajusta o $sp para a proxima posicao vazia
+	
+	# Enderecamento do Display Direito
+	lui $s1, 0xFFFF
+	ori $s1, $s1, 0x0010
+
+	# Enderecamento do Display Esquerdo
+	lui $s2, 0xFFFF
+	ori $s2, $s2, 0x0011
+	
+	# 0x79
+	# Gravar no display o valor de erro
+	addi $t0, $zero, 0x79
+	sb $t0, 0($s1)
+	sb $t0, 0($s2)
+	
+	# Recuperar registradores
+	addi $sp, $sp, 12	# Ajusta o $sp para o inicio da pilha
+	lw $s1, 0($sp)
+	lw $s2,-4($sp)
+	lw $ra, -8($sp)
+	
+	# Retorna para o chamador
+	jr $ra
+	
+END_LIGHT_ERROR:
+	
+CLEAR_ERROR:
+	# Guardar registradores que serao usados
+	sw $s1, 0($sp)
+	sw $s2,-4($sp)
+	sw $ra, -8($sp)
+	addi $sp, $sp, -12	# Ajusta o $sp para a proxima posicao vazia
+	
+	# Enderecamento do Display Direito
+	lui $s1, 0xFFFF
+	ori $s1, $s1, 0x0010
+
+	# Enderecamento do Display Esquerdo
+	lui $s2, 0xFFFF
+	ori $s2, $s2, 0x0011
+	
+	# 0x79
+	# Gravar no display o valor de erro
+	addi $t0, $zero, 0
+	addi $t1, $zero, 0x3F	# Colocar 0 no display direito
+	sb $t1, 0($s1)
+	sb $t0, 0($s2)
+	
+	# Recuperar registradores
+	addi $sp, $sp, 12	# Ajusta o $sp para o inicio da pilha
+	lw $s1, 0($sp)
+	lw $s2,-4($sp)
+	lw $ra, -8($sp)
+	
+	# Retorna para o chamador
+	jr $ra
+	
+END_CLEAR_ERROR:
+
+
+#======================================
 # Rotina de scan para teclado digital
 # Parametros:
 #	Nao recebe nada
@@ -230,7 +386,7 @@ SCAN:
 	
 	# Scan das linhas
 	addi $s4, $zero, 0x1	# Passa o valor 1 para scannear a primeira linha
-	addi $s5, $zero, 8		# Constante 8
+	addi $s5, $zero, 9		# Constante 9
 	
 	SCAN_LOOP:
 		sb $s4, 0($s2)		# Faz a varredura na linha 1->2->4->8
@@ -244,7 +400,8 @@ SCAN:
 		NEXT_ROW:
 			# Avancar linha que sera scanneada
 			sll $s4, $s4, 1						# Faz um shift a esquerda para mudar a posicao do bit
-			beq $s4, $s5, END_SCAN_LOOP		# Varreu todas as linhas
+			slt $t1, $s4, $s5						# $s4 < 9 ? 1 : 0
+			beq $t1, $zero, END_SCAN_LOOP		# Varreu todas as linhas
 			
 			j SCAN_LOOP						# Nenhuma tecla foi pressionada e nem as 4 linhas varridas, reinicia a varredura
 		END_NEXT_ROW:
