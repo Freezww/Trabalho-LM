@@ -53,153 +53,206 @@ syscall
 add  $s0, $v0, $zero   # Salva o endereco base do acumulador em $s0
 sw    $zero, 0($s0)	# Inicializa o contador N em 0
 
-MAIN:
-	jal CLEAR_ERROR
-
-	# Enderecamento do Display Direito
-	lui $s6, 0xFFFF
-	ori $s6, $s6, 0x0010
-
-	# Enderecamento do Display Esquerdo
-	lui $s7, 0xFFFF
-	ori $s7, $s7, 0x0011
-		
-	MAIN_LOOP:
-		# Chama a rotina de scannear o teclado
-		jal SCAN
-		
-		# Verifica se não foi a última tecla pressionada antes
-		beq $v0, $s4, MAIN_LOOP
-		
-		# $s4 recebe a ultima tecla pressionada
-		addi $s4, $v0, 0
-		
-		# Retorno da SCAN
-		beq $v0, $zero, MAIN_LOOP	# Nada foi pressionado, voltar para o laco
-		
-		# Inicializar variaveis de busca
-		addi $s2, $zero, 0
-		addi $s3, $zero, 10
-		
-		SEARCH_LOOP:
-			beq $s2, $s3, IGNORE_KEY		# Se indice == 10, a tecla nao é um digito (0-9)
+MAIN:	
+	# Vai para o laco do programa
+	jal READ_KEYBOARD
 	
-			# Calcular endereco do Codigo de Tecla a ser comparado
-			#la $t3, KEYBOARD_CODES
-			lui $t3, 0x1001			# $t3 = Endereco base de KEYBOARD_CODES
-			ori $t3, $t3, 0x17
-			add $t3, $t3, $s2		# $t3 = Endereco de KEYBOARD_CODES[indice]
-			lb $t4, 0($t3)			# $t4 = KEYBOARD_CODES[indice]
-			
-			IF:
-				# Nao guardar valor
-				bne  $v0, $t4, END_IF	# Se codigo da tecla lida for igual ao codigo do indice, acende o display
-			
-			ELSE:
-				# Acender display direito com a tecla pressionada
-				#la $t5, SEGMENT_VALUES
-				lui $t5, 0x1001			# $t5 = Endereco base de SEGMENT_VALUES
-				ori $t5, $t5, 0xc
-				add $t5, $t5, $s2		# $t5 = Endereco de SEGMENT_VALUES[indice]
-				lb $a0, 0($t5)			# $a0 = Valor do display para o digito
-			
-				# Guardar valor que esta no display
-				jal LIGHT_RIGHT_DISPLAY	# Se codigo da tecla lida for igual ao codigo do indice, acende o display
-				addi $s1, $s2, 0							# Repassar o valor do display para $s1 - Guardar o numero que esta no display
-			
-			END_IF:
-			addi $s2, $s2, 1			# Incrementa o indice
-			j SEARCH_LOOP			# Continua a busca
-			
-		IGNORE_KEY:
-			# $s2 vale 10 quando chega aqui
-			# Mudar o valor da constante $s3 para 16
-			 addi $s3, $zero, 16
-			 
-			SEARCH_LOOP_LETTER:
-				beq $s2, $s3, END_TREATMENTS		# Se indice == 16, chegamos ao fim da verificacao
-			
-				# Calcular endereco do Codigo de Tecla a ser comparado
-				#la $t3, KEYBOARD_CODES
-				lui $t3, 0x1001			# $t3 = Endereco base de KEYBOARD_CODES
-				ori $t3, $t3, 0x17
-				add $t3, $t3, $s2		# $t3 = Endereco de KEYBOARD_CODES[indice]
-				lb $t4, 0($t3)			# $t4 = KEYBOARD_CODES[indice]
-	
-				beq $v0, $t4, SWITCH_CASE		# Se codigo da tecla lida for igual ao codigo do indice, acende o display
-	
-				addi $s2, $s2, 1				# Incrementa o indice
-				j SEARCH_LOOP_LETTER		# Retorna pois ainda nao encontrou qual letra que e
-				
-				# Escolha caso
-				SWITCH_CASE:
-					# Verificacao com a constante 10 (Indica letra A)
-					addi $t0, $zero, 10
-					beq $s2, $t0, LETTER_A
-
-					# Verificacao com a constante 11 (Indica letra B)
-					addi $t0, $zero, 11
-					beq $s2, $t0, LETTER_B
-					
-					# Verificacao com a constante 12 (Indica letra C)
-					addi $t0, $zero, 12
-					beq $s2, $t0, LETTER_C
-					
-					# Verificacao com a constante 13 (Indica letra D)
-					addi $t0, $zero, 13
-					beq $s2, $t0, LETTER_D
-					
-					# Verificacao com a constante 15 (Indica letra E)
-					addi $t0, $zero, 14
-					beq $s2, $t0, LETTER_E
-					
-					# Verificacao com a constante 15 (Indica letra F)
-					addi $t0, $zero, 15
-					beq $s2, $t0, LETTER_F
-					
-					j END_TREATMENTS
-										
-				# Tratar quando 'a' e pressionado
-				LETTER_A:
-					mtc1  $s1, $f12						# Passa o valor que esta no display como valor que deve ser inserido
-					# cvt.s.w $f12, $f12					# Converte a palavra armazenada em $f12 para precisao simples
-					jal INSERT_ACCUMULATOR_FLOAT	# Vai para a rotina de insercao no acumulador
-					
-					j END_TREATMENTS	# Pula para o fim do tratamento das teclas
-					
-				# Tratar quando 'b' e pressionado
-				LETTER_B:
-					
-					j END_TREATMENTS	# Pula para o fim do tratamento das teclas
-
-				# Tratar quando 'c' e pressionado
-				LETTER_C:
-					
-					j END_TREATMENTS	# Pula para o fim do tratamento das teclas
-
-				# Tratar quando 'd' e pressionado
-				LETTER_D:
-					
-					j END_TREATMENTS	# Pula para o fim do tratamento das teclas
-					
-				# Tratar quando 'e' e pressionado
-				LETTER_E:
-					
-					j END_TREATMENTS	# Pula para o fim do tratamento das teclas
-				
-				# Tratar quando 'f' e pressionado
-				LETTER_F:
-					
-					j END_TREATMENTS	# Pula para o fim do tratamento das teclas
-															
-			END_TREATMENTS:
-					
-			j MAIN_LOOP
-	END_MAIN_LOOP:
-
+	# Encerra o programa
 	addi $v0, $zero, 10
 	syscall
 END_MAIN:
+
+
+#======================================
+# Rotina para varredura do teclado
+#======================================
+READ_KEYBOARD:
+	# Guardar registradores
+	sw $ra, 0($sp)
+	sw $s1, -4($sp)
+	sw $s2, -8($sp)
+	sw $s3, -12($sp)
+	sw $s4, -16($sp)
+	sw $s5, -20($sp)
+    	addi $sp, $sp, -24
+
+	addi $s6, $zero, 0    # Valor decimal atual = 0
+	addi $s7, $zero, 1    # Nenhuma tecla pressionada (liberada)
+
+	READ_KEYBOARD_LOOP:
+    		# Chama SCAN (retorna em $v0 o código da tecla)
+    		jal SCAN
+    		
+    		# Guarda em $s5 o retorno de SCAN
+		addi $s5, $v0, 0
+    		
+    		# Ignora repetição se a tecla anterior ainda estiver pressionada
+		beq $s7, $zero, END_READ_KEYBOARD
+
+		# Se nada foi pressionado, sai
+	    	beq $s5, $zero, END_READ_KEYBOARD
+
+	    	# Se mesma tecla e ainda nao liberou, ignora
+		# beq $s5, $s4, END_READ_KEYBOARD
+    	
+	    	# Atualiza tecla atual e marca que ha tecla pressionada
+		addi $s4, $s5, 0
+		addi $s7, $zero, 0   # tecla pressionada
+
+    		# Inicializa busca
+	    	addi $s2, $zero, 0     	# indice atual
+	    	addi $s3, $zero, 10  	# limite (numeros)
+
+		SEARCH_LOOP:
+	    		beq $s2, $s3, IGNORE_KEY
+		
+	    		# Carrega KEYBOARD_CODES[s2]
+		    	# la $t3, KEYBOARD_CODES
+		    	lui $t3, 0x1001			# $t3 = Endereco base de KEYBOARD_CODES
+			ori $t3, $t3, 0x17
+		    	add $t3, $t3, $s2
+		    	lb $t4, 0($t3)
+
+		    	# Comparar codigo
+			bne $s5, $t4, NEXT_DIGIT	#  Ignorar tecla
+			
+			# Mostra numero no display direito e desloca o anterior para a esquerda
+			# Carrega valor do segmento correspondente
+			lui $t5, 0x1001
+			ori $t5, $t5, 0xc
+			add $t5, $t5, $s2
+			lb $a0, 0($t5)          # $a0 = codigo 7-seg do digito atual
+
+			# Move display direito -> esquerdo
+			jal MOVE_RIGHT_TO_LEFT_DISPLAY
+
+			# Mostra novo valor à direita
+			jal LIGHT_RIGHT_DISPLAY
+
+			# Atualiza valor decimal no registrador $s6
+			# $s6 = ($s6 % 10) * 10 + novo_digito
+			addi $t9, $zero, 10
+			div $s6, $t9
+			mfhi $t7
+			mul $t7, $t7, 10
+			add $s6, $t7, $s2    # $s2 contem o indice do digito pressionado (0–9)
+		
+	    		j END_READ_KEYBOARD
+
+			NEXT_DIGIT:
+			    	addi $s2, $s2, 1
+			    	j SEARCH_LOOP
+
+			IGNORE_KEY:
+			    	# Verificar letras (A–F)
+			    	addi $s3, $zero, 16
+
+				SEARCH_LOOP_LETTER:
+			    		beq $s2, $s3, END_READ_KEYBOARD
+
+				    	# la $t3, KEYBOARD_CODES
+				    	lui $t3, 0x1001			# $t3 = Endereco base de KEYBOARD_CODES
+					ori $t3, $t3, 0x17
+				    	add $t3, $t3, $s2
+				    	lb $t4, 0($t3)
+				    	bne $s5, $t4, NEXT_LETTER
+
+				    	# Tratamento de letras
+			    		addi $t0, $zero, 10
+				    	beq $s2, $t0, LETTER_A
+
+			    		addi $t0, $zero, 11
+				    	beq $s2, $t0, LETTER_B
+
+				    	addi $t0, $zero, 12
+				    	beq $s2, $t0, LETTER_C
+
+				    	addi $t0, $zero, 13
+				    	beq $s2, $t0, LETTER_D
+
+				    	addi $t0, $zero, 14
+				    	beq $s2, $t0, LETTER_E
+
+				    	addi $t0, $zero, 15
+				    	beq $s2, $t0, LETTER_F
+	
+				    	j END_READ_KEYBOARD
+
+					NEXT_LETTER:
+					    	addi $s2, $s2, 1
+					    	j SEARCH_LOOP_LETTER
+
+				# --- Letras ---
+				LETTER_A:
+			    		mtc1 $s6, $f12
+			    		jal INSERT_ACCUMULATOR_FLOAT
+			    		j END_READ_KEYBOARD
+
+				LETTER_B:
+				LETTER_C:
+				LETTER_D:
+				LETTER_E:
+				LETTER_F:
+			
+				# Guardar a ultima tecla pressionada
+				add $s1, $s5, 0
+			
+				# Sair da rotina
+				 j END_READ_KEYBOARD
+	 
+END_READ_KEYBOARD:
+	# Se nenhuma tecla for detectada, marca como liberada
+	beq $s5, $zero, KEY_RELEASED
+	j END_KEY_RELEASE
+
+	KEY_RELEASED:
+		addi $s4, $zero, 0	# Ultima tecla pressionada foi 0 (liberou)
+		addi $s7, $zero, 1   	# Tecla liberada
+
+	END_KEY_RELEASE:
+		j READ_KEYBOARD_LOOP
+				
+	# Recuperar os valores armazenados
+    	addi $sp, $sp, 24
+	lw $ra, 0($sp)
+	lw $s1, -4($sp)
+	lw $s2, -8($sp)
+	lw $s3, -12($sp)
+	lw $s4, -16($sp)
+	lw $s5, -20($sp)
+	
+	# Retorna para o chamador
+    	jr $ra
+
+
+#======================================
+# MOVE_RIGHT_TO_LEFT_DISPLAY
+# Copia o valor do display direito para o esquerdo
+#======================================
+MOVE_RIGHT_TO_LEFT_DISPLAY:
+    # Guardar registradores
+    sw $s1, 0($sp)
+    sw $s2, -4($sp)
+    sw $ra, -8($sp)
+    addi $sp, $sp, -12
+
+    # Endereços dos displays
+    lui $s1, 0xFFFF
+    ori $s1, $s1, 0x0010   # Display direito
+    lui $s2, 0xFFFF
+    ori $s2, $s2, 0x0011   # Display esquerdo
+
+    lb $t0, 0($s1)         # le o valor atual do display direito
+    sb $t0, 0($s2)         # escreve no display esquerdo
+
+    # Restaurar registradores
+    addi $sp, $sp, 12
+    lw $s1, 0($sp)
+    lw $s2, -4($sp)
+    lw $ra, -8($sp)
+
+    jr $ra
+END_MOVE_RIGHT_TO_LEFT_DISPLAY:
 
 
 #======================================
@@ -216,9 +269,6 @@ LIGHT_LEFT_DISPLAY:
 	# Enderecamento do Display Esquerdo
 	lui $s1, 0xFFFF
 	ori $s1, $s1, 0x0011
-
-	# Limpar Display antes de colocar novo valor
-	jal CLEAR_ERROR
 
 	sb $a0, 0($s1)			# Escreve o valor do display ($t6) no endereco do Display Esquerdo ($s1)
 
@@ -247,9 +297,6 @@ LIGHT_RIGHT_DISPLAY:
 	lui $s1, 0xFFFF
 	ori $s1, $s1, 0x0010
 
-	# Limpar Display antes de colocar novo valor
-	jal CLEAR_ERROR
-
 	sb $a0, 0($s1)			# Escreve o valor do display ($t6) no endereco do Display Esquerdo ($s1)
 
 	# Recupera os dados
@@ -274,9 +321,6 @@ LIGHT_RIGHT_DOT_DISPLAY:
 	# Enderecamento do Display Esquerdo
 	lui $s1, 0xFFFF
 	ori $s1, $s1, 0x0010
-
-	# Limpar Display antes de colocar novo valor
-	jal CLEAR_ERROR
 
 	sb $a0, 0($s1)			# Escreve o valor do display ($t6) no endereco do Display Esquerdo ($s1)
 
@@ -324,8 +368,12 @@ LIGHT_ERROR:
 	jr $ra
 	
 END_LIGHT_ERROR:
-	
-CLEAR_ERROR:
+
+
+#======================================
+# Rotina para limpar o display
+#======================================
+CLEAR_DISPLAY:
 	# Guardar registradores que serao usados
 	sw $s1, 0($sp)
 	sw $s2,-4($sp)
@@ -343,8 +391,7 @@ CLEAR_ERROR:
 	# 0x79
 	# Gravar no display o valor de erro
 	addi $t0, $zero, 0
-	addi $t1, $zero, 0x3F	# Colocar 0 no display direito
-	sb $t1, 0($s1)
+	# sb $t0, 0($s1)
 	sb $t0, 0($s2)
 	
 	# Recuperar registradores
@@ -356,7 +403,7 @@ CLEAR_ERROR:
 	# Retorna para o chamador
 	jr $ra
 	
-END_CLEAR_ERROR:
+END_CLEAR_DISPLAY:
 
 
 #======================================
@@ -481,3 +528,94 @@ CLEAR_ACCUMULATOR:
 	sw $zero, 0($s0)
 	jr $ra
 END_CLEAR_ACCUMULATOR:
+
+
+#===========================================================
+# FUNCAO PARA CALCULAR O N-ESIMO TERMO DE VAN ECK
+#===========================================================
+CALCULA_VAN_ECK:
+# caso base 
+slti $t0, $a0, 1 # verifica se n < 1 (ou seja, n == 0)
+bne $t0,$zero, CASO_BASE
+j FIM_IF_BASE
+
+# seq[0] = 0
+CASO_BASE:
+lui $t5, 0x1001
+ori $t5, $t5, 0x0000 
+sw $zero, 0($t5) #seq[0] = 0
+
+# return 0
+addi $v0, $zero,0
+jr $ra
+
+FIM_IF_BASE:
+
+addi $sp, $sp, -12 # aloca espaco na pilha
+sw $a0, 8($sp) # armazena $a0 (n)
+sw $ra, 4($sp) # armazena $ra
+sw $fp, 0($sp) # armazena $fp
+addi $fp, $sp, 0   # $fp agora aponta para a base do novo frame
+
+###########################################################################################################
+# calculo do termo anterior
+addi $a0, $a0, -1 # passa n agora com n - 1
+jal CALCULA_VAN_ECK # chama a funcao recursivamente
+
+# puxar da memoria
+lw $a0, 8($sp) # recupero o n antigo
+lw $ra, 4($sp) # puxa endereco de retorno
+lw $fp, 0($sp) # recupero o fp
+addi $sp, $sp, 12 # libera pilha
+
+addi $s1, $v0, 0 # $s1 = retorno da funcao para n-1 (termo anterior)
+
+################################################################################################################
+# procurar ultima vez que $s1 (termo anterior) apareceu
+addi $s2, $a0, -2 # indice de busca 'k', comeca em n-2
+addi $s3, $zero, 0 # flag para dizer se encontrou (0 = nao, 1 = sim)
+addi $s4, $zero, 0 # ultimo indice encontrado
+
+LOOP_BUSCA:
+slti $t9, $s2, 0 # verifica se o indice $s2 e menor que 0
+bne $t9, $zero, FIM_BUSCA # Se $s2 < 0, termina a busca
+
+# calcular endereco base de seq
+lui  $t5, 0x1001
+ori  $t5, $t5, 0x0000
+
+sll $t6, $s2, 2 # t6 = indice * 4
+add $t7, $t5, $t6 # t7 = endereco de seq[k]
+lw $t8, 0($t7) # t8 = seq[k]
+
+beq $t8, $s1, ENCONTROU # verifica se seq[k] == termo anterior, achou
+addi $s2, $s2, -1 # indice = indice - 1
+j LOOP_BUSCA # fica em loop ate encontrar ou ate chegar em um valor menor que 0
+
+ENCONTROU:  
+addi $s4, $s2, 0 # $s4 = indice encontrado (k)
+addi $s3, $zero, 1 # flag = 1, achou
+j FIM_BUSCA 
+
+################################################################################################################
+FIM_BUSCA:
+# calcular para o n-esimo termo 
+beq $s3, $zero, NAO_ENCONTROU # se nao encontrou (flag=0), salta para nao encontrou
+
+# Se encontrou:
+addi $t3, $a0, -1 # t3 = n - 1
+sub $v0, $t3, $s4 # a(n) = (n-1) - k
+j SALVAR
+
+NAO_ENCONTROU:
+addi $v0, $zero, 0 # a(n) = 0
+
+SALVAR:
+ # salvar seq[n] = v0
+    lui  $t5, 0x1001 # carrega a parte alta
+    ori  $t5, $t5, 0x0000 # completa com a parte baixa
+    sll  $t6, $a0, 2 # multiplica n ($a0) por 4 para obter o deslocamento em bytes
+    add  $t7, $t5, $t6  
+    sw   $v0, 0($t7) # coloca na memoria o $v0 na posicao seq[n]
+
+    jr   $ra  # retorna com v0 = a(n)
