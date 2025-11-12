@@ -261,6 +261,54 @@ READ_KEYBOARD:
 				LETTER_C:
 					addi $s1, $zero, 1	# Tecla de funcao pressionada
 				
+					jal CALCULA_DESVIO_PADRAO		# Calcular o desvio padrao (retorno em $f0)
+					
+					mov.s $f12, $f0
+					addi $v0, $zero, 2
+					syscall
+					
+					# Atribui o retorno para $f4
+					mov.s $f4, $f0
+					
+					# Carregar um imediato 10 para ponto flutuante
+					addi $t0, $zero, 10
+					mtc1 $t0, $f5		# Move para o registrador de ponto flutuante
+					cvt.s.w $f5, $f5		# Converte o imediato em ponto flutuante
+
+					# Comparar o valor de retorno com 10 (<)
+					c.le.s $f5, $f4	# Verifica se o retorno e >= 10
+					bc1t F_ERROR		# Desvia e acende erro no display
+					
+					# Obter a parte inteira do valor
+					cvt.w.s $f6, $f4	# Trunca o ponto flutuante em um inteiro
+					mfc1 $t0, $f6	# Repassa para um registrador inteiro
+					
+					# Exibe digito da Esquerda
+					lui $t5, 0x1001
+					ori $t5, $t5, 0xc		# Endereco base de SEGMENT_VALUES
+					add $t5, $t5, $t0	# Adiciona o indice do digito
+					lb $a0, 0($t5)		# Carrega o codigo 7-seg em $a0
+					jal LIGHT_LEFT_DISPLAY
+				
+					# Acende o ponto no display esquerdo
+					jal LIGHT_LEFT_DOT_DISPLAY
+					
+					# Obter a casa a direita da virgula
+					cvt.s.w $f6, $f6		# Converte $f6 novamente para um ponto flutuante
+					sub.s $f7, $f4, $f6	# Subtrai (n_real - n_inteiro)
+					mul.s $f7, $f7, $f5	# Multiplica a parte com virgula por 10
+					
+					# Obter a parte inteira do valor
+					cvt.w.s $f6, $f7	# Trunca o ponto flutuante em um inteiro
+					mfc1 $t0, $f6	# Repassa para um registrador inteiro
+					
+					# Exibe digito da Direita
+					lui $t5, 0x1001
+					ori $t5, $t5, 0xc		# Endereco base de SEGMENT_VALUES
+					add $t5, $t5, $t0	# Adiciona o indice do digito
+					lb $a0, 0($t5)		# Carrega o codigo 7-seg em $a0
+					jal LIGHT_RIGHT_DISPLAY
+				
 					j END_READ_KEYBOARD
 				
 				LETTER_D:
@@ -348,7 +396,7 @@ READ_KEYBOARD:
 				# Guardar a ultima tecla pressionada
 				# add $s1, $s5, 0
 			
-				# Sair da rotina
+				# Voltar ao inicio do laco
 				 j END_READ_KEYBOARD
 	 
 END_READ_KEYBOARD:
@@ -361,6 +409,9 @@ END_READ_KEYBOARD:
 		addi $s7, $zero, 1   	# Tecla liberada
 
 	END_KEY_RELEASE:
+		addi $v0, $zero, 32   # syscall 32 (sleep)
+		addi $a0, $zero, 100   # 20 milissegundos
+		syscall
 		j READ_KEYBOARD_LOOP
 				
 	# Recuperar os valores armazenados
@@ -602,6 +653,11 @@ SCAN:
 			sll $s4, $s4, 1						# Faz um shift a esquerda para mudar a posicao do bit
 			slt $t1, $s4, $s5						# $s4 < 9 ? 1 : 0
 			beq $t1, $zero, END_SCAN_LOOP		# Varreu todas as linhas
+			
+			# Dar um "respiro" para o programa
+			#addi $v0, $zero, 32   # syscall 32 (sleep)
+    			#addi $a0, $zero, 2    # 2 milissegundo
+    			#syscall
 			
 			j SCAN_LOOP						# Nenhuma tecla foi pressionada e nem as 4 linhas varridas, reinicia a varredura
 		END_NEXT_ROW:
